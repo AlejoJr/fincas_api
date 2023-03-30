@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 
 
 class EscanDirectory(APIView):
-    """Class para escanear un directorio"""
+    """Class para escanear un directorio completo"""
 
     authentication_classes = [TokenAuthentication, SessionAuthentication]
     permission_classes = [IsAuthenticated]
