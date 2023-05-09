@@ -1,5 +1,7 @@
 import sys
-
+import os
+import shutil
+from django.conf import settings
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -25,23 +27,29 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self, pk=None):
         if pk is None:
-            return self.get_serializer().Meta.model.objects.all()
+            return self.get_serializer().Meta.model.objects.all().order_by('nombre_finca')
         return self.get_serializer().Meta.model.objects.filter(id=pk).first()
     
     def create(self, request, *args, **kwargs):
         try:
-            user = User.objects.create_user(username=request.data['username'],
-                                            first_name=request.data['first_name'],
-                                            email=request.data['email'],
-                                            password=request.data['password'],
-                                            is_superuser=request.data['is_superuser'],
-                                            cod_finca=request.data['cod_finca'],
-                                            nombre_finca=request.data['nombre_finca'])
-            return Response('Created-OK', status=status.HTTP_201_CREATED)
+            user = User.objects.create_user(nombre_finca=request.data['nameFinca'],
+                                            cod_finca=request.data['codeFinca'],
+                                            username=request.data['usernameFinca'],
+                                            password=request.data['passwordFinca'])
+
+            cod_finca = request.data['codeFinca']
+            base_dir = settings.MI_DIRECTORIO
+            path = os.path.join(base_dir, cod_finca + '/tablon de anuncios')
+            os.makedirs(path, exist_ok=True)  # <- Creamos la carpeta
+
+            respJson = [{'status': 'OK', 'message': 'Created'}]
+            return Response(respJson, status=status.HTTP_201_CREATED)
         except Exception:
             e = sys.exc_info()[1]
             if e.args[0] == 1062:
-                return Response(e.args[0], status=status.HTTP_226_IM_USED)
+                fieldError = e.args[1].split('\'')
+                respJson = [{'status': 'ERROR', 'message': 'El campo: <b>' + fieldError[1]+'</b> ya existe en el sistema!', 'error':''}]
+                return Response(respJson, status=status.HTTP_226_IM_USED)
             else:
                 return Response(e.args[0], status=status.HTTP_400_BAD_REQUEST)
             
@@ -63,11 +71,17 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     def destroy(self, request, pk=None, *args, **kwargs):
-        user = self.get_queryset().filter(id=pk).first()
+        user = self.get_queryset().filter(cod_finca=pk).first()
         if user:
             user.delete()
-            return Response({'message': 'Usuario eliminado correctamente!'}, status=status.HTTP_200_OK)
-        return Response({'error': 'No existe el usuario para eliminarlo'}, status=status.HTTP_400_BAD_REQUEST)
+            base_dir = settings.MI_DIRECTORIO
+            path = os.path.join(base_dir, pk)
+            shutil.rmtree(path)# <- Eliminamos toda la FINCA incluyendo archivos
+            respJson = [{'status': 'OK', 'message': 'Created'}]
+            return Response(respJson, status=status.HTTP_200_OK)
+        
+        respJson = [{'status': 'ERROR', 'message': 'No existe la finca para eliminarla', 'error':'No se pudo eliminar la finca'}]
+        return Response(respJson, status=status.HTTP_400_BAD_REQUEST)
     
 
 class LoginFincasApi(APIView):
@@ -100,3 +114,36 @@ class LoginFincasApi(APIView):
             data = {'No Authenticate': 'El usuario no existe'}
             return Response(data, status=status.HTTP_401_UNAUTHORIZED)
 
+
+class UpdatePassword(APIView):
+    """ Class para actualizar la contraseña de una finca """
+
+    authentication_classes = ()
+
+    def post(self, request):
+        """Actualizar contraseña de finca
+        :param request: (finca, password)
+        :return: OK
+        """
+
+        try:
+            user = request.data['codeFinca']
+            passwd = request.data['password']
+            option = request.data['option']
+
+            if option == '-1':
+                u= User.objects.get(cod_finca=option)
+            else:
+                u= User.objects.get(cod_finca=user)
+                
+            u.set_password(passwd)
+            u.save()
+            
+            respJson = [{'status': 'OK', 'message': 'Contraseña Actualizada'}]
+            return Response(respJson, status=status.HTTP_200_OK)
+        except:
+            respJson = [{'status': 'ERROR', 'message': 'Error actualizando contraseña'}]
+            return Response(respJson, status=status.HTTP_400_BAD_REQUEST)
+
+
+            

@@ -110,7 +110,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 MI_DIRECTORIO = '/Users/alejojr/PycharmProjects/arbolDirectorios_fincas/'
-RUTA_DOWNLOAD = 'http://localhost:8000/fincasapi/download/'
+#RUTA_DOWNLOAD = 'http://localhost:8000/fincasapi/download/'
+RUTA_DOWNLOAD = 'http://localhost:8000/fincasapi/v1/download/'
 
 STATIC_URL = '/static/'
 
